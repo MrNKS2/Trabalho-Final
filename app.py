@@ -3,19 +3,21 @@ from flask_login import LoginManager, login_user, login_required, logout_user, c
 from flask_bcrypt import Bcrypt
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, SubmitField
-from wtforms.validators import DataRequired, EqualTo, Email
+from wtforms.validators import DataRequired, EqualTo, Email, ValidationError
 from db import db
 from models import Usuario
 
 app = Flask(__name__)
-app.config["SECRET_KEY"] = "segredo"
+
+app.config["SECRET_KEY"] = "segredo"  # trocar assim que der
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///db.sqlite3"
 
 db.init_app(app)
 bcrypt = Bcrypt(app)
 
 login_manager = LoginManager(app)
-login_manager.login_view = "entrar"
+login_manager.login_view = "login"
+
 
 @login_manager.user_loader
 def load_user(usuario_id):
@@ -24,11 +26,21 @@ def load_user(usuario_id):
 
 class FormRegistro(FlaskForm):
     nome_usuario = StringField("Nome de usuário", validators=[DataRequired()])
-    email = StringField("Email", validators=[DataRequired(), Email()])
+    email = StringField("Email", validators=[DataRequired(), Email(message="Digite um email válido!")])
     telefone = StringField("Telefone", validators=[DataRequired()])
     senha = PasswordField("Senha", validators=[DataRequired()])
-    confirmar_senha = PasswordField("Confirmar senha", validators=[DataRequired(), EqualTo("senha")])
+    confirmar_senha = PasswordField("Confirmar senha", validators=[DataRequired(), EqualTo("senha", message="As senhas devem coincidir!")])
     enviar = SubmitField("Registrar")
+
+    def validate_email(self, campo_email):
+        existente = Usuario.query.filter_by(email=campo_email.data).first()
+        if existente:
+            raise ValidationError("Esse email já está registrado!")
+
+    def validate_nome_usuario(self, campo_nome):
+        existente = Usuario.query.filter_by(nome_usuario=campo_nome.data).first()
+        if existente:
+            raise ValidationError("Esse nome de usuário já está em uso!")
 
 
 class FormLogin(FlaskForm):
@@ -37,17 +49,34 @@ class FormLogin(FlaskForm):
     entrar = SubmitField("Entrar")
 
 
-@app.route("/Registrar", methods=["GET", "POST"])
-def registrar():
-    form = FormRegistro()
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    form_login = FormLogin()
+    form_registro = FormRegistro()
 
-    if form.validate_on_submit():
-        senha_hash = bcrypt.generate_password_hash(form.senha.data).decode("utf-8")
+    if form_login.entrar.data and form_login.validate_on_submit():
+
+        entrada = form_login.nome_usuario.data.strip()
+
+        usuario = Usuario.query.filter(
+            (Usuario.nome_usuario == entrada) | (Usuario.email == entrada)
+        ).first()
+
+        if usuario and bcrypt.check_password_hash(usuario.senha, form_login.senha.data):
+            login_user(usuario)
+            return redirect(url_for("inicio"))
+        else:
+            flash("Login incorreto!", "erro")
+
+
+    if form_registro.enviar.data and form_registro.validate_on_submit():
+
+        senha_hash = bcrypt.generate_password_hash(form_registro.senha.data).decode("utf-8")
 
         novo_usuario = Usuario(
-            nome_usuario=form.nome_usuario.data,
-            email=form.email.data,
-            telefone=form.telefone.data,
+            nome_usuario=form_registro.nome_usuario.data.strip(),
+            email=form_registro.email.data.strip().lower(),
+            telefone=form_registro.telefone.data,
             senha=senha_hash
         )
 
@@ -55,28 +84,9 @@ def registrar():
         db.session.commit()
 
         flash("Conta criada com sucesso!", "sucesso")
-        return redirect(url_for("entrar"))
+        return redirect(url_for("login"))
 
-    return render_template("registrar.html", form=form)
-
-
-@app.route("/Entrar", methods=["GET", "POST"])
-def entrar():
-    form = FormLogin()
-
-    if form.validate_on_submit():
-        usuario = Usuario.query.filter(
-            (Usuario.nome_usuario == form.nome_usuario.data) |
-            (Usuario.email == form.nome_usuario.data)
-        ).first()
-
-        if usuario and bcrypt.check_password_hash(usuario.senha, form.senha.data):
-            login_user(usuario)
-            return redirect(url_for("inicio"))
-        else:
-            flash("Dados incorretos", "erro")
-
-    return render_template("entrar.html", form=form)
+    return render_template("login.html", form_login=form_login, form_registro=form_registro)
 
 
 @app.route("/inicio")
@@ -89,7 +99,7 @@ def inicio():
 @login_required
 def sair():
     logout_user()
-    return redirect(url_for("entrar"))
+    return redirect(url_for("login"))
 
 
 if __name__ == "__main__":

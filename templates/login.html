@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login / Registro</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f0f0f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            width: 380px;
+            background: #fff;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.1);
+        }
+
+        h2 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        form {
+            display: none;
+        }
+
+        form.active {
+            display: block;
+        }
+
+        input, button {
+            width: 100%;
+            margin: 8px 0;
+            padding: 10px;
+        }
+
+        .switch {
+            text-align: center;
+            margin-top: 10px;
+        }
+
+        .switch a {
+            cursor: pointer;
+            color: #007bff;
+        }
+
+        .flash {
+            padding: 10px;
+            background: #ffe2e2;
+            border-left: 5px solid red;
+            margin-bottom: 10px;
+        }
+
+        .success {
+            background: #d4ffe2;
+            border-left: 5px solid green;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <!-- MENSAGENS FLASH -->
+    {% with msgs = get_flashed_messages(with_categories=true) %}
+        {% if msgs %}
+            {% for category, message in msgs %}
+                <div class="flash {% if category == 'sucesso' %}success{% endif %}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <h2 id="titulo">Entrar</h2>
+
+    <!-- FORM LOGIN -->
+    <form method="POST" class="active" id="form_login">
+        {{ form_login.hidden_tag() }}
+
+        {{ form_login.nome_usuario.label }}  
+        {{ form_login.nome_usuario }}
+
+        {{ form_login.senha.label }}
+        {{ form_login.senha }}
+
+        {{ form_login.entrar }}
+    </form>
+
+    <!-- FORM REGISTRO -->
+    <form method="POST" id="form_registro">
+        {{ form_registro.hidden_tag() }}
+
+        {{ form_registro.nome_usuario.label }}
+        {{ form_registro.nome_usuario }}
+
+        {{ form_registro.email.label }}
+        {{ form_registro.email }}
+
+        {{ form_registro.telefone.label }}
+        {{ form_registro.telefone }}
+
+        {{ form_registro.senha.label }}
+        {{ form_registro.senha }}
+
+        {{ form_registro.confirmar_senha.label }}
+        {{ form_registro.confirmar_senha }}
+
+        {{ form_registro.enviar }}
+    </form>
+
+    <div class="switch">
+        <span id="trocar_texto">Não tem conta?</span>
+        <a id="trocar_botao">Registrar</a>
+    </div>
+
+</div>
+
+<script>
+    const formLogin = document.getElementById("form_login");
+    const formRegistro = document.getElementById("form_registro");
+    const titulo = document.getElementById("titulo");
+    const trocar_texto = document.getElementById("trocar_texto");
+    const trocar_botao = document.getElementById("trocar_botao");
+
+    trocar_botao.onclick = () => {
+        if (formLogin.classList.contains("active")) {
+            formLogin.classList.remove("active");
+            formRegistro.classList.add("active");
+
+            titulo.textContent = "Registrar";
+            trocar_texto.textContent = "Já tem conta?";
+            trocar_botao.textContent = "Entrar";
+        } else {
+            formRegistro.classList.remove("active");
+            formLogin.classList.add("active");
+
+            titulo.textContent = "Entrar";
+            trocar_texto.textContent = "Não tem conta?";
+            trocar_botao.textContent = "Registrar";
+        }
+    };
+</script>
+
+</body>
+</html>
